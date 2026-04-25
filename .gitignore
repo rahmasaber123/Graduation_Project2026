@@ -1,0 +1,67 @@
+# ─── Python ─────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Virtual environments ───────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── NBIS artifacts (large files — not for git) ─────────────────────────
+# The trained model, FAISS index, mapping, threshold, preprocessing config,
+# and SQLite database all live in artifacts/ and should never be committed.
+# Keep the README so the folder survives a clone.
+artifacts/*
+!artifacts/README.md
+!artifacts/.gitkeep
+
+# ─── Data ───────────────────────────────────────────────────────────────
+*.keras
+*.h5
+*.pkl
+*.index
+*.db
+*.sqlite
+*.sqlite3
+*.BMP
+*.bmp
+
+# ─── Logs & runtime ─────────────────────────────────────────────────────
+*.log
+logs/
+nohup.out
+
+# ─── OS / IDE ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Notebooks ──────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ─── Misc ───────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.bak
+*.tmp
+
+DATA/
+*.zip
+*.csv

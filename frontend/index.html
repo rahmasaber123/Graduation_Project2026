@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NBIS — Fingerprint Identification</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+<!-- ═══════════════════════════ STYLES ════════════════════════════ -->
+<style>
+/* ─── Design tokens ─────────────────────────────────────────────── */
+:root {
+  --bg:             #f4f7fb;
+  --surface:        #ffffff;
+  --surface-2:      #f8fafc;
+  --border:         #e1e8f0;
+  --border-strong:  #cbd5e1;
+
+  --navy:           #0a2540;   /* dark blue - primary accent */
+  --navy-2:         #143a66;
+  --navy-3:         #1e4d85;
+  --navy-soft:      #eaf0fa;   /* very light navy tint for badges/hovers */
+
+  --text:           #0a2540;
+  --text-dim:       #5b6b82;
+  --text-muted:     #8a9aaf;
+
+  --green:          #16a34a;
+  --green-soft:     #dcfce7;
+  --red:            #dc2626;
+  --red-soft:       #fee2e2;
+  --amber:          #d97706;
+  --amber-soft:     #fef3c7;
+
+  --radius:         12px;
+  --radius-sm:      8px;
+  --shadow-sm:      0 1px 2px rgba(10, 37, 64, 0.04);
+  --shadow:         0 4px 16px rgba(10, 37, 64, 0.06);
+  --mono:           "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+               Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Top bar ───────────────────────────────────────────────────── */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 28px;
+  background: var(--navy);
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: var(--shadow);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo {
+  font-size: 22px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.12);
+  display: grid;
+  place-items: center;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: rgba(255,255,255,0.65);
+  letter-spacing: 0.3px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--red);
+}
+.dot.online {
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
+  70%  { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.index-info {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: rgba(255,255,255,0.8);
+  padding: 3px 10px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 6px;
+  margin-left: 6px;
+}
+
+/* ─── Grid ──────────────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 18px;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.col-left, .col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+@media (max-width: 1024px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Cards ─────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+
+.card-header h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--navy);
+  letter-spacing: 0.2px;
+}
+
+.card-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* ─── Dropzone ──────────────────────────────────────────────────── */
+.dropzone {
+  position: relative;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  min-height: 200px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.dropzone:hover,
+.dropzone.dragover {
+  border-color: var(--navy);
+  background: var(--navy-soft);
+}
+
+.dz-inner {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-dim);
+}
+
+.dz-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+  opacity: 0.7;
+}
+
+.dz-text {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.dz-text strong { color: var(--navy); font-weight: 600; }
+
+.dz-hint {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-muted);
+}
+
+.preview {
+  display: none;
+  max-width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+.preview.show { display: block; }
+
+.dz-inner.hidden { display: none; }
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+button {
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.btn-primary {
+  background: var(--navy);
+  color: white;
+  flex: 1;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--navy-2);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  color: var(--navy);
+  border-color: var(--navy);
+}
+
+/* ─── Spinner ───────────────────────────────────────────────────── */
+.spinner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.spinner-ring {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.hidden { display: none !important; }
+
+/* ─── Status banner ─────────────────────────────────────────────── */
+.status-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 16px;
+  border-left: 4px solid var(--border);
+  background: var(--surface-2);
+}
+
+.status-banner.match {
+  border-left-color: var(--green);
+  background: var(--green-soft);
+  color: #14532d;
+}
+.status-banner.nomatch {
+  border-left-color: var(--red);
+  background: var(--red-soft);
+  color: #7f1d1d;
+}
+
+.conf-pill {
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.6);
+  border: 1px solid var(--border);
+  color: var(--navy);
+}
+
+.result-empty {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* ─── Record sections ───────────────────────────────────────────── */
+.record-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.record-section:first-of-type { border-top: none; padding-top: 0; }
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.section-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--navy-soft);
+  color: var(--navy);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+
+.kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 20px;
+}
+
+.kv {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.kv .k {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 3px;
+}
+
+.kv .v {
+  font-size: 13px;
+  color: var(--text);
+  font-family: var(--mono);
+  word-break: break-word;
+}
+.kv .v.placeholder { color: var(--text-muted); font-style: italic; }
+
+/* ─── Top-K ─────────────────────────────────────────────────────── */
+.topk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.topk-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.topk-item.is-top {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.topk-rank {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--navy);
+  font-size: 12px;
+  padding: 3px 8px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.topk-info { display: flex; flex-direction: column; }
+
+.topk-id {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.topk-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.topk-score {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--navy);
+}
+
+/* ─── Stats ─────────────────────────────────────────────────────── */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.metric {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  text-align: center;
+}
+
+.metric-val {
+  font-size: 24px;
+  font-weight: 600;
+  font-family: var(--mono);
+  line-height: 1.1;
+  color: var(--navy);
+}
+
+.metric-val.match   { color: var(--green); }
+.metric-val.nomatch { color: var(--red); }
+
+.metric-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chart-box {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  height: 200px;
+  position: relative;
+}
+
+/* ─── Activity ──────────────────────────────────────────────────── */
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.activity-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  letter-spacing: 0.5px;
+}
+
+.activity-badge.match   { background: var(--green-soft); color: #166534; }
+.activity-badge.nomatch { background: var(--red-soft);   color: #991b1b; }
+
+.activity-id {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-score {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--navy);
+}
+
+.activity-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.empty-hint {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px;
+  font-size: 13px;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--surface-2); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Toasts ────────────────────────────────────────────────────── */
+.toast-host {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+}
+
+.toast {
+  background: white;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 13px;
+  max-width: 340px;
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+.toast.info    { border-left-color: var(--navy); }
+.toast.success { border-left-color: var(--green); }
+.toast.warn    { border-left-color: var(--amber); }
+.toast.error   { border-left-color: var(--red); }
+
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.toast { animation: slide-in 0.25s ease-out; }
+
+.latency-tag {
+  font-family: var(--mono);
+  color: var(--navy);
+}
+</style>
+</head>
+
+<body>
+
+<!-- ═══════════════════════════ TOP BAR ════════════════════════════ -->
+<header class="top-bar">
+  <div class="brand">
+    <div class="logo">🧬</div>
+    <div>
+      <div class="title">NBIS</div>
+      <div class="subtitle">Newborn Biometric Identification</div>
+    </div>
+  </div>
+  <div class="status">
+    <span id="statusDot" class="dot"></span>
+    <span id="statusText">checking…</span>
+    <span id="indexInfo" class="index-info"></span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════ MAIN GRID ══════════════════════════ -->
+<main class="grid">
+
+  <!-- ═══ LEFT COLUMN ═══ -->
+  <div class="col-left">
+
+    <!-- SCANNER -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Scan Fingerprint</h2>
+        <span class="card-sub">Upload or drag</span>
+      </div>
+
+      <div id="dropzone" class="dropzone">
+        <input type="file" id="fileInput" accept="image/*" hidden />
+        <div class="dz-inner" id="dzInner">
+          <div class="dz-icon">📁</div>
+          <div class="dz-text"><strong>Click to upload</strong> or drag &amp; drop</div>
+          <div class="dz-hint">BMP · PNG · JPG &nbsp;·&nbsp; max 10 MB</div>
+        </div>
+        <img id="preview" class="preview" alt="" />
+      </div>
+
+      <div class="actions">
+        <button id="scanBtn" class="btn-primary" disabled>Scan Fingerprint</button>
+        <button id="clearBtn" class="btn-ghost">Clear</button>
+      </div>
+
+      <div id="spinner" class="spinner hidden">
+        <div class="spinner-ring"></div>
+        <span>Identifying…</span>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Dashboard</h2>
+        <span class="card-sub">Session activity</span>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-val" id="mTotal">0</div>
+          <div class="metric-label">Total scans</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val match" id="mMatch">0</div>
+          <div class="metric-label">Matches</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val nomatch" id="mNoMatch">0</div>
+          <div class="metric-label">No match</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="mRate">0%</div>
+          <div class="metric-label">Match rate</div>
+        </div>
+      </div>
+      <div class="chart-box"><canvas id="scanChart"></canvas></div>
+    </section>
+
+    <!-- ACTIVITY -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Recent Activity</h2>
+        <span class="card-sub">Last 10 scans</span>
+      </div>
+      <div id="activityList" class="activity-list">
+        <div class="empty-hint">No activity yet</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ═══ RIGHT COLUMN ═══ -->
+  <div class="col-right">
+
+    <!-- RESULT + DB RECORD -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Identification Result</h2>
+        <span id="latencyTag" class="card-sub latency-tag"></span>
+      </div>
+
+      <div id="resultEmpty" class="result-empty">
+        Upload an image to begin
+      </div>
+
+      <div id="resultBody" class="hidden">
+
+        <!-- Status banner -->
+        <div id="statusBanner" class="status-banner">
+          <span id="statusBannerText">—</span>
+          <span id="statusBannerConf" class="conf-pill">—</span>
+        </div>
+
+        <!-- Biometric match summary -->
+        <div class="record-section">
+          <div class="section-title">
+            <span class="section-icon">🔎</span>
+            Biometric Match
+          </div>
+          <div class="kv-grid">
+            <div class="kv"><span class="k">Identity</span><span id="rIdentity"  class="v">—</span></div>
+            <div class="kv"><span class="k">Subject</span> <span id="rSubject"   class="v">—</span></div>
+            <div class="kv"><span class="k">Hand</span>    <span id="rHand"      class="v">—</span></div>
+            <div class="kv"><span class="k">Finger</span>  <span id="rFinger"    class="v">—</span></div>
+            <div class="kv"><span class="k">Similarity</span><span id="rSim"     class="v">—</span></div>
+            <div class="kv"><span class="k">Threshold</span><span id="rThresh"   class="v">—</span></div>
+          </div>
+        </div>
+
+        <!-- Child record -->
+        <div class="record-section" id="secChild">
+          <div class="section-title">
+            <span class="section-icon">👶</span>
+            Child
+          </div>
+          <div class="kv-grid">
+            <div class="kv"><span class="k">Full name</span>      <span id="cName"   class="v">—</span></div>
+            <div class="kv"><span class="k">Subject ID</span>     <span id="cSid"    class="v">—</span></div>
+            <div class="kv"><span class="k">Gender</span>         <span id="cGender" class="v">—</span></div>
+            <div class="kv"><span class="k">Birth date</span>     <span id="cBirth"  class="v">—</span></div>
+            <div class="kv"><span class="k">Weight</span>         <span id="cWeight" class="v">—</span></div>
+            <div class="kv"><span class="k">Blood group</span>    <span id="cBlood"  class="v">—</span></div>
+          </div>
+        </div>
+
+        <!-- Father record -->
+        <div class="record-section" id="secFather">
+          <div class="section-title">
+            <span class="section-icon">👨</span>
+            Father
+          </div>
+          <div class="kv-grid">
+            <div class="kv"><span class="k">Full name</span>      <span id="fName"   class="v">—</span></div>
+            <div class="kv"><span class="k">National ID</span>    <span id="fNid"    class="v">—</span></div>
+            <div class="kv"><span class="k">Birth date</span>     <span id="fBirth"  class="v">—</span></div>
+            <div class="kv"><span class="k">Blood group</span>    <span id="fBlood"  class="v">—</span></div>
+            <div class="kv"><span class="k">Phone</span>          <span id="fPhone"  class="v">—</span></div>
+            <div class="kv"><span class="k">Email</span>          <span id="fEmail"  class="v">—</span></div>
+            <div class="kv"><span class="k">City</span>           <span id="fCity"   class="v">—</span></div>
+          </div>
+        </div>
+
+        <!-- Mother record -->
+        <div class="record-section" id="secMother">
+          <div class="section-title">
+            <span class="section-icon">👩</span>
+            Mother
+          </div>
+          <div class="kv-grid">
+            <div class="kv"><span class="k">Full name</span>      <span id="mName"   class="v">—</span></div>
+            <div class="kv"><span class="k">National ID</span>    <span id="mNid"    class="v">—</span></div>
+            <div class="kv"><span class="k">Birth date</span>     <span id="mBirth"  class="v">—</span></div>
+            <div class="kv"><span class="k">Blood group</span>    <span id="mBlood"  class="v">—</span></div>
+            <div class="kv"><span class="k">Phone</span>          <span id="mPhone"  class="v">—</span></div>
+            <div class="kv"><span class="k">Email</span>          <span id="mEmail"  class="v">—</span></div>
+            <div class="kv"><span class="k">City</span>           <span id="mCity"   class="v">—</span></div>
+          </div>
+        </div>
+
+        <!-- Hospital record -->
+        <div class="record-section" id="secHospital">
+          <div class="section-title">
+            <span class="section-icon">🏥</span>
+            Registered Birth Hospital
+          </div>
+          <div class="kv-grid">
+            <div class="kv"><span class="k">Hospital name</span>  <span id="hName"    class="v">—</span></div>
+            <div class="kv"><span class="k">City</span>           <span id="hCity"    class="v">—</span></div>
+            <div class="kv"><span class="k">Phone</span>          <span id="hPhone"   class="v">—</span></div>
+            <div class="kv"><span class="k">Address</span>        <span id="hAddress" class="v">—</span></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TOP-K -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Top-K Candidates</h2>
+        <span class="card-sub">Ranked similarity</span>
+      </div>
+      <div id="topkList" class="topk-list">
+        <div class="empty-hint">No scan yet</div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div id="toastHost" class="toast-host"></div>
+
+<!-- ═══════════════════════════ SCRIPT ═════════════════════════════ -->
+<script>
+(() => {
+  "use strict";
+
+  const API = "http://127.0.0.1:8000";
+  const $   = (id) => document.getElementById(id);
+
+  const state = {
+    total: 0, matches: 0, noMatches: 0,
+    activity: [], selected: null, scanning: false,
+    backendOnline: false,
+  };
+
+  // ─── Chart.js ────────────────────────────────────────────────────
+  const chart = new Chart($("scanChart"), {
+    type: "doughnut",
+    data: {
+      labels: ["Match", "No match"],
+      datasets: [{
+        data: [0, 0],
+        backgroundColor: ["#16a34a", "#dc2626"],
+        borderColor: "#ffffff",
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: "#5b6b82", font: { size: 12 }, boxWidth: 12 },
+        },
+      },
+      cutout: "68%",
+    },
+  });
+
+  // ─── Toasts ──────────────────────────────────────────────────────
+  function toast(message, kind = "info", ttl = 4000) {
+    const el = document.createElement("div");
+    el.className = `toast ${kind}`;
+    el.textContent = message;
+    $("toastHost").appendChild(el);
+    setTimeout(() => {
+      el.style.animation = "slide-in 0.25s ease-in reverse";
+      setTimeout(() => el.remove(), 250);
+    }, ttl);
+  }
+
+  // ─── Dropzone ────────────────────────────────────────────────────
+  const dropzone  = $("dropzone");
+  const fileInput = $("fileInput");
+  const preview   = $("preview");
+  const dzInner   = $("dzInner");
+
+  dropzone.addEventListener("click", () => fileInput.click());
+
+  ["dragenter", "dragover"].forEach((ev) =>
+    dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    })
+  );
+
+  ["dragleave", "drop"].forEach((ev) =>
+    dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+    })
+  );
+
+  dropzone.addEventListener("drop", (e) => {
+    const f = e.dataTransfer.files[0];
+    if (f) setFile(f);
+  });
+
+  fileInput.addEventListener("change", (e) => {
+    const f = e.target.files[0];
+    if (f) setFile(f);
+  });
+
+  function setFile(file) {
+    if (!file.type.startsWith("image/")) {
+      toast("Not an image file.", "error");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast("File exceeds 10 MB.", "error");
+      return;
+    }
+    state.selected = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      preview.src = e.target.result;
+      preview.classList.add("show");
+      dzInner.classList.add("hidden");
+    };
+    reader.readAsDataURL(file);
+    $("scanBtn").disabled = false;
+  }
+
+  $("clearBtn").addEventListener("click", () => {
+    state.selected = null;
+    fileInput.value = "";
+    preview.src = "";
+    preview.classList.remove("show");
+    dzInner.classList.remove("hidden");
+    $("scanBtn").disabled = true;
+    $("resultBody").classList.add("hidden");
+    $("resultEmpty").classList.remove("hidden");
+    $("latencyTag").textContent = "";
+    $("topkList").innerHTML = '<div class="empty-hint">No scan yet</div>';
+  });
+
+  // ─── Scan action ─────────────────────────────────────────────────
+  $("scanBtn").addEventListener("click", doScan);
+
+  async function doScan() {
+    if (!state.selected || state.scanning) return;
+    if (!state.backendOnline) {
+      toast("Backend is offline.", "error");
+      return;
+    }
+
+    state.scanning = true;
+    $("scanBtn").disabled = true;
+    $("spinner").classList.remove("hidden");
+
+    const form = new FormData();
+    form.append("file", state.selected);
+
+    try {
+      const r = await fetch(`${API}/identify`, { method: "POST", body: form });
+      if (!r.ok) {
+        const err = await safeJson(r);
+        throw new Error(err?.detail || `HTTP ${r.status}`);
+      }
+      const result = await r.json();
+      renderResult(result);
+      pushActivity(result);
+      updateStats(result);
+    } catch (err) {
+      console.error(err);
+      toast(`Scan failed: ${err.message}`, "error");
+    } finally {
+      state.scanning = false;
+      $("scanBtn").disabled = false;
+      $("spinner").classList.add("hidden");
+    }
+  }
+
+  async function safeJson(r) {
+    try { return await r.json(); } catch { return null; }
+  }
+
+  // ─── Rendering ───────────────────────────────────────────────────
+  function txt(id, value, fallback = "—") {
+    const el = $(id);
+    if (value === null || value === undefined || value === "") {
+      el.textContent = fallback;
+      el.classList.add("placeholder");
+    } else {
+      el.textContent = value;
+      el.classList.remove("placeholder");
+    }
+  }
+
+  function renderResult(r) {
+    $("resultEmpty").classList.add("hidden");
+    $("resultBody").classList.remove("hidden");
+
+    const isMatch = r.status === "MATCH";
+    const banner = $("statusBanner");
+    banner.classList.remove("match", "nomatch");
+    banner.classList.add(isMatch ? "match" : "nomatch");
+    $("statusBannerText").textContent =
+      isMatch ? "✓ Match found" : "✕ Unknown fingerprint";
+    $("statusBannerConf").textContent = `${r.confidence?.toFixed(2) ?? "—"}%`;
+
+    // Biometric summary
+    txt("rIdentity", r.identity_id);
+    txt("rSubject",  r.subject_id);
+    txt("rHand",     r.hand);
+    txt("rFinger",   r.finger);
+    txt("rSim",      r.similarity?.toFixed(4));
+    txt("rThresh",   r.threshold?.toFixed(4));
+
+    $("latencyTag").textContent =
+      r.latency_ms ? `${r.latency_ms.toFixed(0)} ms` : "";
+
+    // DB record sections — show only if we have a match + a DB block
+    const db = r.database;
+    const hasDb = isMatch && db && typeof db === "object";
+    ["secChild", "secFather", "secMother", "secHospital"].forEach((id) => {
+      $(id).style.display = hasDb ? "" : "none";
+    });
+
+    if (hasDb) {
+      // Child
+      const c = db.child || {};
+      txt("cName",   c.name);
+      txt("cSid",    c.subject_id);
+      txt("cGender", c.gender);
+      txt("cBirth",  c.birth_datetime);
+      txt("cWeight", c.weight_kg);
+      txt("cBlood",  c.blood_group);
+
+      // Father
+      const f = db.father || {};
+      txt("fName",  f.name);
+      txt("fNid",   f.national_id);
+      txt("fBirth", f.birth_date);
+      txt("fBlood", f.blood_group);
+      txt("fPhone", f.phone);
+      txt("fEmail", f.email);
+      txt("fCity",  f.city);
+
+      // Mother
+      const m = db.mother || {};
+      txt("mName",  m.name);
+      txt("mNid",   m.national_id);
+      txt("mBirth", m.birth_date);
+      txt("mBlood", m.blood_group);
+      txt("mPhone", m.phone);
+      txt("mEmail", m.email);
+      txt("mCity",  m.city);
+
+      // Hospital
+      const h = db.hospital || {};
+      txt("hName",    h.name);
+      txt("hCity",    h.city);
+      txt("hPhone",   h.phone);
+      txt("hAddress", h.address);
+    }
+
+    renderTopK(r.top_k || [], r.identity_id);
+
+    if (isMatch && !hasDb) {
+      toast("DB record not available for this subject.", "warn");
+    } else if (!isMatch) {
+      toast("Unknown fingerprint — no match above threshold.", "warn");
+    }
+  }
+
+  function renderTopK(items, matchedId) {
+    const host = $("topkList");
+    if (!items.length) {
+      host.innerHTML = '<div class="empty-hint">No candidates returned</div>';
+      return;
+    }
+    host.innerHTML = items.map((it) => {
+      const isTop = it.rank === 1;
+      const flag  = it.identity_id && it.identity_id === matchedId ? " ✓" : "";
+      return `
+        <div class="topk-item ${isTop ? "is-top" : ""}">
+          <span class="topk-rank">#${it.rank}</span>
+          <div class="topk-info">
+            <span class="topk-id">${it.identity_id || it.subject_id}</span>
+            <span class="topk-meta">subject ${it.subject_id} · ${it.hand ?? ""} ${it.finger ?? ""}${flag}</span>
+          </div>
+          <span class="topk-score">${(it.score * 100).toFixed(2)}%</span>
+        </div>`;
+    }).join("");
+  }
+
+  // ─── Stats + activity ────────────────────────────────────────────
+  function updateStats(r) {
+    state.total += 1;
+    if (r.status === "MATCH") state.matches += 1; else state.noMatches += 1;
+
+    $("mTotal").textContent   = state.total;
+    $("mMatch").textContent   = state.matches;
+    $("mNoMatch").textContent = state.noMatches;
+    const rate = state.total ? (state.matches / state.total * 100) : 0;
+    $("mRate").textContent    = `${rate.toFixed(0)}%`;
+
+    chart.data.datasets[0].data = [state.matches, state.noMatches];
+    chart.update();
+  }
+
+  function pushActivity(r) {
+    state.activity.unshift({
+      status:   r.status,
+      identity: r.identity_id || "—",
+      score:    r.similarity,
+      time:     new Date().toLocaleTimeString([], {
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+      }),
+    });
+    state.activity = state.activity.slice(0, 10);
+    renderActivity();
+  }
+
+  function renderActivity() {
+    const host = $("activityList");
+    if (!state.activity.length) {
+      host.innerHTML = '<div class="empty-hint">No activity yet</div>';
+      return;
+    }
+    host.innerHTML = state.activity.map((a) => {
+      const k     = a.status === "MATCH" ? "match" : "nomatch";
+      const label = a.status === "MATCH" ? "MATCH" : "NO MATCH";
+      return `
+        <div class="activity-item">
+          <span class="activity-badge ${k}">${label}</span>
+          <span class="activity-id">${a.identity}</span>
+          <span class="activity-score">${(a.score * 100).toFixed(2)}%</span>
+          <span class="activity-time">${a.time}</span>
+        </div>`;
+    }).join("");
+  }
+
+  // ─── Health poll ─────────────────────────────────────────────────
+  async function pollHealth() {
+    try {
+      const r = await fetch(`${API}/health`);
+      const h = await r.json();
+      const ok = h.status === "ok" && h.ready;
+      state.backendOnline = ok;
+      $("statusDot").className  = `dot ${ok ? "online" : ""}`;
+      $("statusText").textContent = ok ? "Online" : "Offline";
+      if (ok) {
+        const dbTag = h.database_available ? " · DB ✓" : " · DB ✗";
+        $("indexInfo").textContent =
+          `${h.index_size.toLocaleString()} vectors · τ=${h.threshold.toFixed(3)}${dbTag}`;
+      } else {
+        $("indexInfo").textContent = h.load_error
+          ? `load error: ${h.load_error.slice(0, 60)}…`
+          : "";
+      }
+    } catch {
+      state.backendOnline = false;
+      $("statusDot").className  = "dot";
+      $("statusText").textContent = "Offline";
+      $("indexInfo").textContent = "";
+    }
+  }
+
+  pollHealth();
+  setInterval(pollHealth, 10000);
+})();
+</script>
+</body>
+</html>
