@@ -1,10 +1,4 @@
-"""
-NBIS Model Loader
-=================
-Rebuilds the MobileNetV2 + triplet-head architecture in-process and loads
-weights only. Avoids keras.models.load_model() entirely, so the file is
-immune to Keras/TF version drift between Colab and local.
-"""
+
 from __future__ import annotations
 
 import io
@@ -21,7 +15,6 @@ from tensorflow import keras
 from tensorflow.keras import layers, Model
 from tensorflow.keras.applications import MobileNetV2
 
-# Pillow 10+ compatibility
 try:
     _LANCZOS = Image.Resampling.LANCZOS
 except AttributeError:
@@ -29,7 +22,7 @@ except AttributeError:
 
 
 class L2Normalize(keras.layers.Layer):
-    """L2-normalize along axis=1. Keeps embeddings on the unit hypersphere."""
+   
 
     def call(self, inputs):
         return tf.math.l2_normalize(inputs, axis=1)
@@ -51,13 +44,12 @@ class NBISSystem:
         self.img_size: tuple[int, int] = (224, 224)
         self.ready: bool = False
 
-    # ─────────────────────────────────────────────────────────────────────
     def _build_model(self, img_size: tuple[int, int], embedding_dim: int) -> Model:
         """Rebuild the exact architecture from the notebook."""
         base = MobileNetV2(
             input_shape=(*img_size, 3),
             include_top=False,
-            weights=None,           # weights come from the checkpoint below
+            weights=None,          
         )
         inputs  = keras.Input(shape=(*img_size, 3), name='fingerprint_input')
         x       = base(inputs, training=False)
@@ -69,19 +61,17 @@ class NBISSystem:
         outputs = L2Normalize(name='l2_embedding')(x)
         return Model(inputs, outputs, name='embedding_network')
 
-    # ─────────────────────────────────────────────────────────────────────
     def load(self) -> None:
         """Load all artifacts from disk. Called once at startup."""
         d = self.artifacts_dir
         if not d.exists():
             raise FileNotFoundError(f"Artifacts directory not found: {d}")
 
-        # 1. Preprocessing config
+       
         with open(d / "nbis_preprocessing_config.json") as f:
             self.prep_config = json.load(f)
         self.img_size = tuple(self.prep_config["img_size"])
 
-        # 2. Model — rebuild architecture + load weights only (version-safe)
         self.model = self._build_model(
             self.img_size, int(self.prep_config["embedding_dim"])
         )
@@ -104,7 +94,7 @@ class NBISSystem:
 
         self.ready = True
 
-    # ─────────────────────────────────────────────────────────────────────
+  
     def preprocess(self, image_bytes: bytes) -> np.ndarray:
         img = Image.open(io.BytesIO(image_bytes)).convert("L")
         img = img.resize(self.img_size, _LANCZOS)
@@ -112,7 +102,7 @@ class NBISSystem:
         arr = np.stack([arr, arr, arr], axis=-1)
         return arr
 
-    # ─────────────────────────────────────────────────────────────────────
+   
     def identify(self, image_bytes: bytes, top_k: int = 5) -> dict[str, Any]:
         if not self.ready:
             raise RuntimeError("NBIS system not loaded. Call load() first.")
@@ -171,7 +161,7 @@ class NBISSystem:
                 "top_k"     : top_k_results,
             }
 
-    # ─────────────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────
     def health(self) -> dict[str, Any]:
         return {
             "ready"        : self.ready,
