@@ -1,19 +1,4 @@
-"""
-NBIS SQLite accessor
-====================
-Thin read-only wrapper around the `nbis.db` file produced by the notebook's
-"Egyptian Database" section. Runs the same JOIN across
-`subjects / fathers / mothers / hospitals` that the notebook uses to print
-a matched record.
 
-Design notes
-------------
-- Opens a short-lived connection per call. SQLite handles this cheaply
-  (the DB file stays mmap-ed by the OS) and avoids threading pitfalls with
-  FastAPI's concurrent request handling.
-- Returns `None` if the file is missing, the subject isn't found, or the
-  schema differs — so the API degrades gracefully when the DB is optional.
-"""
 from __future__ import annotations
 
 import logging
