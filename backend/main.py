@@ -1,16 +1,4 @@
-"""
-NBIS FastAPI service
-====================
-Loads the NBIS model, FAISS index, mapping, threshold, and SQLite DB ONCE
-at startup and exposes:
 
-    GET  /health            — liveness + system info
-    POST /identify          — multipart image → identification + full DB record
-    POST /identify-base64   — JSON {image: "<base64>"} → same as above
-    GET  /record/{sid}      — fetch DB record by subject_id (diagnostic)
-
-Serves the single-file frontend (index.html) at /.
-"""
 from __future__ import annotations
 
 import base64
@@ -28,7 +16,7 @@ from pydantic import BaseModel, Field
 from db import NBISDatabase
 from model_loader import NBISSystem
 
-# ─── Paths & config ─────────────────────────────────────────────────────────
+
 BACKEND_DIR   = Path(__file__).resolve().parent
 PROJECT_ROOT  = BACKEND_DIR.parent
 ARTIFACTS_DIR = Path(os.environ.get("NBIS_ARTIFACTS_DIR", PROJECT_ROOT / "artifacts"))
@@ -37,14 +25,12 @@ FRONTEND_DIR  = PROJECT_ROOT / "frontend"
 TOP_K_DEFAULT = int(os.environ.get("NBIS_TOP_K", "5"))
 MAX_UPLOAD_MB = int(os.environ.get("NBIS_MAX_UPLOAD_MB", "10"))
 
-# ─── Logging ────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-7s %(name)s  %(message)s",
 )
 log = logging.getLogger("nbis.api")
 
-# ─── Shared singletons ──────────────────────────────────────────────────────
 nbis = NBISSystem(ARTIFACTS_DIR)
 db   = NBISDatabase(DB_PATH)
 
@@ -58,7 +44,6 @@ _stats = {
 }
 
 
-# ─── Lifespan: load once at startup ─────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("Loading NBIS artifacts from %s", ARTIFACTS_DIR)
@@ -98,15 +83,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# ─── Schemas ────────────────────────────────────────────────────────────────
 class Base64Request(BaseModel):
     image: str = Field(..., description="Base64-encoded image bytes "
                                         "(raw, or `data:image/*;base64,...`)")
     top_k: int | None = Field(None, ge=1, le=50)
 
 
-# ─── Helpers ────────────────────────────────────────────────────────────────
+
 def _record_result(result: dict) -> None:
     _stats["total_scans"] += 1
     if result["status"] == "MATCH":
@@ -137,10 +120,10 @@ def _enrich_with_db(result: dict) -> None:
     if not sid:
         return
     record = db.fetch_full_record(sid)
-    result["database"] = record  # None if unavailable — the UI handles it
+    result["database"] = record  
 
 
-# ─── Endpoints ──────────────────────────────────────────────────────────────
+
 @app.get("/health")
 async def health():
     h = nbis.health()
@@ -223,7 +206,6 @@ async def identify_base64(req: Base64Request):
     return result
 
 
-# ─── Frontend (single index.html) ───────────────────────────────────────────
 if FRONTEND_DIR.exists():
     @app.get("/")
     async def root():
